@@ -7438,8 +7438,10 @@ func (a *Allocation) Stub() *AllocListStub {
 		ID:                 a.ID,
 		EvalID:             a.EvalID,
 		Name:               a.Name,
+		Namespace:          a.Namespace,
 		NodeID:             a.NodeID,
 		JobID:              a.JobID,
+		JobType:            a.Job.Type,
 		JobVersion:         a.Job.Version,
 		TaskGroup:          a.TaskGroup,
 		DesiredStatus:      a.DesiredStatus,
@@ -7463,8 +7465,10 @@ type AllocListStub struct {
 	ID                 string
 	EvalID             string
 	Name               string
+	Namespace          string
 	NodeID             string
 	JobID              string
+	JobType            string
 	JobVersion         uint64
 	TaskGroup          string
 	DesiredStatus      string
