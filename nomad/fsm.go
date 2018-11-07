@@ -175,6 +175,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	buf := log.Data
 	msgType := structs.MessageType(buf[0])
 
+	n.logger.Debug("applying raft log", "index", log.Index, "msg_type", msgType)
+
 	// Witness this write
 	n.timetable.Witness(log.Index, time.Now().UTC())
 

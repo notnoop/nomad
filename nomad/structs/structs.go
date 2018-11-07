@@ -84,6 +84,75 @@ const (
 	SchedulerConfigRequestType
 )
 
+func (m MessageType) String() string {
+	switch m {
+	case NodeRegisterRequestType:
+		return "NodeRegisterRequestType"
+	case NodeDeregisterRequestType:
+		return "NodeDeregisterRequestType"
+	case NodeUpdateStatusRequestType:
+		return "NodeUpdateStatusRequestType"
+	case NodeUpdateDrainRequestType:
+		return "NodeUpdateDrainRequestType"
+	case JobRegisterRequestType:
+		return "JobRegisterRequestType"
+	case JobDeregisterRequestType:
+		return "JobDeregisterRequestType"
+	case EvalUpdateRequestType:
+		return "EvalUpdateRequestType"
+	case EvalDeleteRequestType:
+		return "EvalDeleteRequestType"
+	case AllocUpdateRequestType:
+		return "AllocUpdateRequestType"
+	case AllocClientUpdateRequestType:
+		return "AllocClientUpdateRequestType"
+	case ReconcileJobSummariesRequestType:
+		return "ReconcileJobSummariesRequestType"
+	case VaultAccessorRegisterRequestType:
+		return "VaultAccessorRegisterRequestType"
+	case VaultAccessorDeregisterRequestType:
+		return "VaultAccessorDeregisterRequestType"
+	case ApplyPlanResultsRequestType:
+		return "ApplyPlanResultsRequestType"
+	case DeploymentStatusUpdateRequestType:
+		return "DeploymentStatusUpdateRequestType"
+	case DeploymentPromoteRequestType:
+		return "DeploymentPromoteRequestType"
+	case DeploymentAllocHealthRequestType:
+		return "DeploymentAllocHealthRequestType"
+	case DeploymentDeleteRequestType:
+		return "DeploymentDeleteRequestType"
+	case JobStabilityRequestType:
+		return "JobStabilityRequestType"
+	case ACLPolicyUpsertRequestType:
+		return "ACLPolicyUpsertRequestType"
+	case ACLPolicyDeleteRequestType:
+		return "ACLPolicyDeleteRequestType"
+	case ACLTokenUpsertRequestType:
+		return "ACLTokenUpsertRequestType"
+	case ACLTokenDeleteRequestType:
+		return "ACLTokenDeleteRequestType"
+	case ACLTokenBootstrapRequestType:
+		return "ACLTokenBootstrapRequestType"
+	case AutopilotRequestType:
+		return "AutopilotRequestType"
+	case UpsertNodeEventsType:
+		return "UpsertNodeEventsType"
+	case JobBatchDeregisterRequestType:
+		return "JobBatchDeregisterRequestType"
+	case AllocUpdateDesiredTransitionRequestType:
+		return "AllocUpdateDesiredTransitionRequestType"
+	case NodeUpdateEligibilityRequestType:
+		return "NodeUpdateEligibilityRequestType"
+	case BatchNodeUpdateDrainRequestType:
+		return "BatchNodeUpdateDrainRequestType"
+	case SchedulerConfigRequestType:
+		return "SchedulerConfigRequestType"
+	}
+
+	panic("unexpected MessageType:")
+}
+
 const (
 	// IgnoreUnknownTypeFlag is set along with a MessageType
 	// to indicate that the message type can be safely ignored
