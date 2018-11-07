@@ -141,7 +141,7 @@ OUTER:
 			gcAlloc = append(gcAlloc, jobAlloc...)
 			gcEval = append(gcEval, jobEval...)
 
-			c.logger.Debug("allEvalsGC", "jobs", gcJob, "allocs", gcAlloc, "evals", gcEval)
+			c.logger.Debug("allEvalsGC", "job", job, "allocs", jobAlloc, "evals", jobEval)
 		}
 	}
 
