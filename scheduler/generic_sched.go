@@ -8,6 +8,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -335,9 +336,30 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// nodes to lost
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
+	if s.eval != nil &&
+		s.eval.TriggeredBy == structs.EvalTriggerJobDeregister &&
+		!s.job.Stopped() {
+
+		snapIndex := uint64(0)
+		if snap, ok := s.state.(*state.StateSnapshot); ok {
+			v, err := snap.LatestIndex()
+			if err != nil {
+				panic(fmt.Errorf("failed to get index", err))
+			}
+			snapIndex = v
+		}
+
+		s.logger.Error("detected possible job re-run",
+			"job_id", s.eval.JobID,
+			"snapshot_index", snapIndex,
+			"eval", fmt.Sprintf("%#v", s.eval),
+			"job", fmt.Sprintf("%#v", s.job))
+	}
+
 	reconciler := NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID)
+
 	results := reconciler.Compute()
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", results))
 
