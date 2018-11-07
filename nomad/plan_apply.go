@@ -271,6 +271,17 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 		return nil, err
 	}
 
+	if plan.Job == nil {
+		logger.Debug("unexpected nil job for plan", "plan", fmt.Sprintf("%#v", plan))
+	} else {
+		j, err := snap.JobByID(nil, plan.Job.Namespace, plan.Job.ID)
+		if err != nil {
+			logger.Error("failed to look up plan job", "err", err, "plan", fmt.Sprintf("%#v", plan))
+		} else if j == nil {
+			logger.Debug("got a plan without a job", "plan", fmt.Sprintf("%#v", plan))
+		}
+	}
+
 	// Reject the plan and force the scheduler to refresh
 	if overQuota {
 		index, err := refreshIndex(snap)
