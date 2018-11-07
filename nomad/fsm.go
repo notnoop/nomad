@@ -176,6 +176,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	msgType := structs.MessageType(buf[0])
 
 	n.logger.Debug("applying raft log", "index", log.Index, "msg_type", msgType)
+	defer n.logger.Debug("done applying raft log", "index", log.Index, "msg_type", msgType)
 
 	// Witness this write
 	n.timetable.Witness(log.Index, time.Now().UTC())
@@ -527,11 +528,16 @@ func (n *nomadFSM) applyBatchDeregisterJob(buf []byte, index uint64) interface{}
 		}
 	}
 
+	n.logger.Debug("batch_deregister: deregistered jobs", "index", index, "jobs", len(req.Jobs))
+	defer n.logger.Debug("batch_deregister: upserted evals", "index", index)
+
 	return n.upsertEvals(index, req.Evals)
 }
 
 // handleJobDeregister is used to deregister a job.
 func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool) error {
+	defer n.logger.Debug("handleJobDeregister: deregistered job", "index", index, "job_id", jobID)
+
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		n.logger.Error("periodicDispatcher.Remove failed", "error", err)
@@ -587,6 +593,8 @@ func (n *nomadFSM) upsertEvals(index uint64, evals []*structs.Evaluation) error 
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
+
+	n.logger.Debug("upsertEvals: upserted", "index", index, "evals", len(evals))
 
 	n.handleUpsertedEvals(evals)
 	return nil
