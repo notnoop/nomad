@@ -186,6 +186,8 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// Handle stopping unneeded deployments
 	a.cancelDeployments()
 
+	a.logger.Debug("computing allocation", "eval", a.evalID, "job_id", a.jobID, "job", a.job)
+
 	// If we are just stopping a job we do not need to do anything more than
 	// stopping all running allocs
 	if a.job.Stopped() {

@@ -120,7 +120,7 @@ func (w *Worker) run() {
 		}
 
 		// Wait for the raft log to catchup to the evaluation
-		if err := w.waitForIndex(waitIndex, raftSyncLimit); err != nil {
+		if err := w.waitForIndex(waitIndex, raftSyncLimit, eval.ID); err != nil {
 			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
 			w.sendAck(eval.ID, token, false)
 			continue
@@ -230,7 +230,7 @@ func (w *Worker) sendAck(evalID, token string, ack bool) {
 // but also potentially mid-stream. If a Plan fails because of stale
 // state (attempt to allocate to a failed/dead node), we may need
 // to sync our state again and do the planning with more recent data.
-func (w *Worker) waitForIndex(index uint64, timeout time.Duration) error {
+func (w *Worker) waitForIndex(index uint64, timeout time.Duration, ids ...string) error {
 	// XXX: Potential optimization is to set up a watch on the state stores
 	// index table and only unblock via a trigger rather than timing out and
 	// checking.
@@ -243,6 +243,8 @@ CHECK:
 	if err != nil {
 		return fmt.Errorf("failed to determine state store's index: %v", err)
 	}
+
+	w.logger.Debug("waiting for index", "id", ids, "wait_index", index, "snapshot_index", snapshotIndex)
 
 	// We only need the FSM state to be as recent as the given index
 	if index <= snapshotIndex {
@@ -347,7 +349,7 @@ SUBMIT:
 	if result.RefreshIndex != 0 {
 		// Wait for the raft log to catchup to the evaluation
 		w.logger.Debug("refreshing state", "refresh_index", result.RefreshIndex, "eval_id", plan.EvalID)
-		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit); err != nil {
+		if err := w.waitForIndex(result.RefreshIndex, raftSyncLimit, plan.EvalID); err != nil {
 			return nil, nil, err
 		}
 

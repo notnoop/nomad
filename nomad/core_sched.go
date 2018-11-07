@@ -140,6 +140,8 @@ OUTER:
 			gcJob = append(gcJob, job)
 			gcAlloc = append(gcAlloc, jobAlloc...)
 			gcEval = append(gcEval, jobEval...)
+
+			c.logger.Debug("allEvalsGC", "jobs", gcJob, "allocs", gcAlloc, "evals", gcEval)
 		}
 	}
 
@@ -261,6 +263,8 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	}
 	c.logger.Debug("eval GC found eligibile objects",
 		"evals", len(gcEval), "allocs", len(gcAlloc))
+	c.logger.Debug("eval GC found eligible full objects",
+		"evals", gcEval, "allocs", gcAlloc)
 
 	return c.evalReap(gcEval, gcAlloc)
 }

@@ -119,6 +119,11 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 			return &mErr
 		}
 
+		if eval.ModifyIndex > waitIndex {
+			e.logger.Warn("unexpected modify vs waitIndex", "modify_index", eval.ModifyIndex, "wait_index", waitIndex)
+			waitIndex = eval.ModifyIndex
+		}
+
 		reply.Eval = eval
 		reply.Token = token
 		reply.WaitIndex = waitIndex
