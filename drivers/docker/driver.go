@@ -872,6 +872,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	config.Env = task.EnvList()
 
+	if task.Env["NVIDIA_VISIBLE_DEVICES"] != "" {
+		hostConfig.Runtime = "nvidia"
+	}
+
 	containerName := strings.Replace(task.ID, "/", "_", -1)
 	logger.Debug("setting container name", "container_name", containerName)
 
