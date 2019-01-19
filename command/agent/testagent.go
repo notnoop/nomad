@@ -251,7 +251,8 @@ func (a *TestAgent) Shutdown() error {
 	case err := <-ch:
 		return err
 	case <-time.After(1 * time.Minute):
-		return fmt.Errorf("timed out while shutting down test agent")
+		panic("timed out while shutting down test agent")
+		//return fmt.Errorf("timed out while shutting down test agent")
 	}
 }
 

@@ -71,7 +71,7 @@ func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func() error) 
 		case e := <-ch:
 			return e
 		case <-time.After(1 * time.Minute):
-			return fmt.Errorf("timed out while shutting down client")
+			panic("timed out while shutting down client")
 		}
 	}
 }
