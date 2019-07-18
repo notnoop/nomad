@@ -45,6 +45,23 @@ func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
 	return server, server.GetConfig().RPCAddr.String()
 }
 
+func (c *Client) addAlloc(alloc *structs.Allocation, migrationToke string) error {
+	a, err := c.allocManager.allocSynchronizer()
+	if err != nil {
+		return err
+	}
+
+	return a.startAlloc(alloc, migrationToke)
+}
+
+func (c *Client) getAllocRunners() map[string]AllocRunner {
+	return c.allocManager.(*arManager).getAllocRunners()
+}
+
+func (c *Client) getAllocRunner(allocID string) (AllocRunner, error) {
+	return c.allocManager.(*arManager).getAllocRunner(allocID)
+}
+
 func TestClient_StartStop(t *testing.T) {
 	t.Parallel()
 	client, cleanup := TestClient(t, nil)
@@ -485,9 +502,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// Both allocations should get registered
 	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		num := len(c1.allocs)
-		c1.allocLock.RUnlock()
+		num := c1.allocManager.NumAllocs()
 		return num == 2, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -509,9 +524,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// One allocation should get GC'd and removed
 	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		num := len(c1.allocs)
-		c1.allocLock.RUnlock()
+		num := c1.allocManager.NumAllocs()
 		return num == 1, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -519,9 +532,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// One allocations should get updated
 	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc2.ID]
-		c1.allocLock.RUnlock()
+		ar, _ := c1.getAllocRunner(alloc2.ID)
 		return ar.Alloc().DesiredStatus == structs.AllocDesiredStatusStop, nil
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
@@ -581,9 +592,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 
 	// Allocations should get registered
 	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		c1.allocLock.RUnlock()
+		ar, _ := c1.getAllocRunner(alloc1.ID)
 		if ar == nil {
 			return false, fmt.Errorf("nil alloc runner")
 		}
@@ -614,9 +623,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 
 	// Ensure the allocation is running
 	testutil.WaitForResult(func() (bool, error) {
-		c2.allocLock.RLock()
-		ar := c2.allocs[alloc1.ID]
-		c2.allocLock.RUnlock()
+		ar, _ := c2.getAllocRunner(alloc1.ID)
 		status := ar.Alloc().ClientStatus
 		alive := status == structs.AllocClientStatusRunning || status == structs.AllocClientStatusPending
 		if !alive {
@@ -678,9 +685,7 @@ func TestClient_RestoreError(t *testing.T) {
 
 	// Allocations should get registered
 	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		c1.allocLock.RUnlock()
+		ar, _ := c1.getAllocRunner(alloc1.ID)
 		if ar == nil {
 			return false, fmt.Errorf("nil alloc runner")
 		}
@@ -781,10 +786,8 @@ func TestClient_AddAllocError(t *testing.T) {
 
 	// Ensure the allocation has been marked as invalid and failed on the server
 	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		_, isInvalid := c1.invalidAllocs[alloc1.ID]
-		c1.allocLock.RUnlock()
+		ar, _ := c1.getAllocRunner(alloc1.ID)
+		isInvalid := c1.allocManager.(*arManager).isInvalidAlloc(alloc1.ID)
 		if ar != nil {
 			return false, fmt.Errorf("expected nil alloc runner")
 		}
@@ -1545,7 +1548,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 		require.NoError(err)
 	})
 
-	result := client.getAllocatedResources(client.config.Node)
+	result := client.allocManager.getAllocatedResources(client.config.Node)
 
 	expected := structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{

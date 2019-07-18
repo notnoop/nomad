@@ -75,7 +75,7 @@ func (a *Allocations) Signal(args *nstructs.AllocSignalRequest, reply *nstructs.
 		return nstructs.ErrPermissionDenied
 	}
 
-	return a.c.SignalAllocation(args.AllocID, args.Task, args.Signal)
+	return a.c.allocManager.SignalAllocation(args.AllocID, args.Task, args.Signal)
 }
 
 // Restart is used to trigger a restart of an allocation or a subtask on a client.
@@ -88,7 +88,7 @@ func (a *Allocations) Restart(args *nstructs.AllocRestartRequest, reply *nstruct
 		return nstructs.ErrPermissionDenied
 	}
 
-	return a.c.RestartAllocation(args.AllocID, args.TaskName)
+	return a.c.allocManager.RestartAllocation(args.AllocID, args.TaskName)
 }
 
 // Stats is used to collect allocation statistics
@@ -188,17 +188,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return helper.Int64ToPtr(400), errors.New("command is not present")
 	}
 
-	ar, err := a.c.getAllocRunner(req.AllocID)
-	if err != nil {
-		code := helper.Int64ToPtr(500)
-		if structs.IsErrUnknownAllocation(err) {
-			code = helper.Int64ToPtr(404)
-		}
-
-		return code, err
-	}
-
-	capabilities, err := ar.GetTaskDriverCapabilities(req.Task)
+	h, capabilities, err := a.c.allocManager.GetTaskExecHandler(req.AllocID, req.Task)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {
@@ -216,7 +206,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		}
 	}
 
-	allocState, err := a.c.GetAllocState(req.AllocID)
+	allocState, err := a.c.allocManager.GetAllocState(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {
@@ -239,7 +229,6 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	h := ar.GetTaskExecHandler(req.Task)
 	if h == nil {
 		return helper.Int64ToPtr(404), fmt.Errorf("task %q is not running.", req.Task)
 	}

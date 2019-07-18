@@ -26,7 +26,7 @@ func TestDriverManager_Fingerprint_Run(t *testing.T) {
 		Loader:              testClient.config.PluginSingletonLoader,
 		PluginConfig:        testClient.configCopy.NomadPluginConfig(),
 		Updater:             testClient.updateNodeFromDriver,
-		EventHandlerFactory: testClient.GetTaskEventHandler,
+		EventHandlerFactory: testClient.allocManager.GetTaskEventHandler,
 		State:               testClient.stateDB,
 	})
 
@@ -77,7 +77,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 		Loader:              testClient.config.PluginSingletonLoader,
 		PluginConfig:        testClient.configCopy.NomadPluginConfig(),
 		Updater:             testClient.updateNodeFromDriver,
-		EventHandlerFactory: testClient.GetTaskEventHandler,
+		EventHandlerFactory: testClient.allocManager.GetTaskEventHandler,
 		State:               testClient.stateDB,
 	})
 
@@ -138,7 +138,7 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 		Loader:              testClient.config.PluginSingletonLoader,
 		PluginConfig:        testClient.configCopy.NomadPluginConfig(),
 		Updater:             testClient.updateNodeFromDriver,
-		EventHandlerFactory: testClient.GetTaskEventHandler,
+		EventHandlerFactory: testClient.allocManager.GetTaskEventHandler,
 		State:               testClient.stateDB,
 	})
 

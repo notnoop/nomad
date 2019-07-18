@@ -106,7 +106,7 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 		return structs.ErrPermissionDenied
 	}
 
-	fs, err := f.c.GetAllocFS(args.AllocID)
+	fs, err := f.c.allocManager.GetAllocFS(args.AllocID)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 		return structs.ErrPermissionDenied
 	}
 
-	fs, err := f.c.GetAllocFS(args.AllocID)
+	fs, err := f.c.allocManager.GetAllocFS(args.AllocID)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
-	fs, err := f.c.GetAllocFS(req.AllocID)
+	fs, err := f.c.allocManager.GetAllocFS(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {
@@ -369,7 +369,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	fs, err := f.c.GetAllocFS(req.AllocID)
+	fs, err := f.c.allocManager.GetAllocFS(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {
@@ -380,7 +380,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	allocState, err := f.c.GetAllocState(req.AllocID)
+	allocState, err := f.c.allocManager.GetAllocState(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
 		if structs.IsErrUnknownAllocation(err) {

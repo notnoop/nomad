@@ -215,7 +215,7 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 	req.AllocID = a.ID
 	testutil.WaitForResult(func() (bool, error) {
 		// Check if has been removed first
-		if ar, ok := client.allocs[a.ID]; !ok || ar.IsDestroyed() {
+		if ar, err := client.getAllocRunner(a.ID); err != nil || ar.IsDestroyed() {
 			return true, nil
 		}
 
