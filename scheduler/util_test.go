@@ -386,16 +386,21 @@ func TestTaintedNodes(t *testing.T) {
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.Node()
 	node4.Drain = true
+	node5 := mock.Node()
+	node5.Status = structs.NodeStatusDown
+	node5.Virtual = true
 	noErr(t, state.UpsertNode(1000, node1))
 	noErr(t, state.UpsertNode(1001, node2))
 	noErr(t, state.UpsertNode(1002, node3))
 	noErr(t, state.UpsertNode(1003, node4))
+	noErr(t, state.UpsertNode(1004, node5))
 
 	allocs := []*structs.Allocation{
 		{NodeID: node1.ID},
 		{NodeID: node2.ID},
 		{NodeID: node3.ID},
 		{NodeID: node4.ID},
+		{NodeID: node5.ID},
 		{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
 	tainted, err := taintedNodes(state, allocs)

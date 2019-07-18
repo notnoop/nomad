@@ -318,6 +318,11 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 			out[alloc.NodeID] = nil
 			continue
 		}
+		// if node is virtual, don't migrate or reschedule
+		if node.Virtual {
+			continue
+		}
+
 		if structs.ShouldDrainNode(node.Status) || node.Drain {
 			out[alloc.NodeID] = node
 		}

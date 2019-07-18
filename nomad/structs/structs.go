@@ -1578,6 +1578,10 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// Virtual indicates whether node represent workload running externally and not
+	// local to the node
+	Virtual bool
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
