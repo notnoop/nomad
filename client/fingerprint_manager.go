@@ -72,11 +72,17 @@ func (fp *FingerprintManager) Run() error {
 	whitelistFingerprintsEnabled := len(whitelistFingerprints) > 0
 	blacklistFingerprints := cfg.ReadStringListToMap("fingerprint.blacklist")
 
-	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
+	var fingerprints []string
+	if fp.getNode().Virtual {
+		fingerprints = fingerprint.BuiltinVirtualFingerprints()
+	} else {
+		fingerprints = fingerprint.BuiltinFingerprints()
+	}
+	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprints)
 
 	var availableFingerprints []string
 	var skippedFingerprints []string
-	for _, name := range fingerprint.BuiltinFingerprints() {
+	for _, name := range fingerprints {
 		// Skip modules that are not in the whitelist if it is enabled.
 		if _, ok := whitelistFingerprints[name]; whitelistFingerprintsEnabled && !ok {
 			skippedFingerprints = append(skippedFingerprints, name)

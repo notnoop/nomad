@@ -485,6 +485,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Node.Name = agentConfig.NodeName
 	conf.Node.Meta = agentConfig.Client.Meta
 	conf.Node.NodeClass = agentConfig.Client.NodeClass
+	conf.Node.Virtual = agentConfig.Client.Virtual
 
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP

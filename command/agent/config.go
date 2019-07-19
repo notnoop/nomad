@@ -255,6 +255,9 @@ type ClientConfig struct {
 	// available to jobs running on this node.
 	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
 
+	// Virtual indicates that the client node should be treated as virtual
+	Virtual bool `hcl:"virtual"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
@@ -811,6 +814,7 @@ func DefaultConfig() *Config {
 			GCMaxAllocs:           50,
 			NoHostUUID:            helper.BoolToPtr(true),
 			DisableRemoteExec:     false,
+			Virtual:               false,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -1401,6 +1405,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	if b.TemplateConfig != nil {
 		result.TemplateConfig = b.TemplateConfig
+	}
+
+	if b.Virtual {
+		result.Virtual = b.Virtual
 	}
 
 	// Add the servers
