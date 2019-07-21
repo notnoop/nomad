@@ -65,10 +65,6 @@ func BuiltinFingerprints() []string {
 	return fingerprints
 }
 
-func BuiltinVirtualFingerprints() []string {
-	return []string{"consul", "nomad", "vault"}
-}
-
 // NewFingerprint is used to instantiate and return a new fingerprint
 // given the name and a logger
 func NewFingerprint(name string, logger log.Logger) (Fingerprint, error) {

@@ -1,9 +1,11 @@
 package client
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
@@ -72,12 +74,7 @@ func (fp *FingerprintManager) Run() error {
 	whitelistFingerprintsEnabled := len(whitelistFingerprints) > 0
 	blacklistFingerprints := cfg.ReadStringListToMap("fingerprint.blacklist")
 
-	var fingerprints []string
-	if fp.getNode().Virtual {
-		fingerprints = fingerprint.BuiltinVirtualFingerprints()
-	} else {
-		fingerprints = fingerprint.BuiltinFingerprints()
-	}
+	fingerprints := fingerprint.BuiltinFingerprints()
 	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprints)
 
 	var availableFingerprints []string
@@ -101,11 +98,37 @@ func (fp *FingerprintManager) Run() error {
 		return err
 	}
 
+	if err := fp.setupCustomFingerprinters(cfg.CustomFingerprinters); err != nil {
+		return err
+	}
+
 	if len(skippedFingerprints) != 0 {
 		fp.logger.Debug("fingerprint modules skipped due to white/blacklist",
 			"skipped_fingerprinters", skippedFingerprints)
 	}
 
+	return nil
+}
+
+func (fm *FingerprintManager) setupCustomFingerprinters(fingerprinters map[string]func(hclog.Logger) interface{}) error {
+
+	var appliedFingerprints []string
+	for name, factory := range fingerprinters {
+		f, ok := factory(fm.logger).(fingerprint.Fingerprint)
+		if !ok {
+			return fmt.Errorf("custom fingerprint is not a fingerprint")
+		}
+		detected, err := fm.fingerprint(name, f)
+		if err != nil {
+			return err
+		}
+
+		if detected {
+			appliedFingerprints = append(appliedFingerprints, name)
+		}
+	}
+
+	fm.logger.Debug("detected custom fingerprints", "node_attrs", appliedFingerprints)
 	return nil
 }
 

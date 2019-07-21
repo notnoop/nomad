@@ -240,6 +240,9 @@ type Config struct {
 
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
+
+	// HACK: avoid referencing fingerprint type to avoid cycles
+	CustomFingerprinters map[string]func(log.Logger) interface{}
 }
 
 type ClientTemplateConfig struct {
