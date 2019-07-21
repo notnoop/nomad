@@ -550,6 +550,10 @@ func (c *Command) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *Command) Run(args []string) int {
+	return c.RunWithCustomConfig(args, nil)
+}
+
+func (c *Command) RunWithCustomConfig(args []string, configFn func(*Config, hclog.Logger)) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "==> ",
 		InfoPrefix:   "    ",
@@ -588,6 +592,10 @@ func (c *Command) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
 	} else {
 		c.Ui.Output("No configuration files loaded")
+	}
+
+	if configFn != nil {
+		configFn(config, logger)
 	}
 
 	// Initialize the telemetry
