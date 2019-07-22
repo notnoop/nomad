@@ -408,6 +408,7 @@ func (i *instanceManager) handleEvents() {
 	eventsCh, cancel, err := i.dispenseTaskEventsCh()
 	if err != nil {
 		i.logger.Error("failed to dispense driver", "error", err)
+		return
 	}
 
 	var backoff time.Duration
