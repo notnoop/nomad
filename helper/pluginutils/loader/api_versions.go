@@ -9,7 +9,8 @@ var (
 	// AgentSupportedApiVersions is the set of API versions supported by the
 	// Nomad agent by plugin type.
 	AgentSupportedApiVersions = map[string][]string{
-		base.PluginTypeDevice: {device.ApiVersion010},
-		base.PluginTypeDriver: {device.ApiVersion010},
+		base.PluginTypeDevice:      {device.ApiVersion010},
+		base.PluginTypeDriver:      {device.ApiVersion010},
+		base.PluginTypeAllocDriver: {"v0.1.0"},
 	}
 )

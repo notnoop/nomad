@@ -11,8 +11,11 @@ import (
 
 const (
 	DriverHealthy = "Healthy"
+
+	ApiVersion010 = "v0.1.0"
 )
 
+type TaskEvent = drivers.TaskEvent
 type Fingerprint = drivers.Fingerprint
 type AllocState = arstate.State
 
@@ -30,6 +33,7 @@ type AllocDriverPlugin interface {
 
 	NodeFingerprint() (*NodeFingerprint, error)
 	Fingerprint(context.Context) (<-chan *Fingerprint, error)
+	TaskEvents(context.Context) (<-chan *TaskEvent, error)
 
 	StartAllocation(alloc *structs.Allocation) error
 	StopAllocation(allocID string) error
@@ -39,6 +43,5 @@ type AllocDriverPlugin interface {
 	RestartAllocation(allocID, taskName string) error
 	InspectAllocation(allocID string) (*AllocState, error)
 
-	// returns all allocations IDs this is aware mapped to alloc.AllocModifyIndex
-	RunningAllocations() (map[string]uint64, error)
+	Shutdown()
 }

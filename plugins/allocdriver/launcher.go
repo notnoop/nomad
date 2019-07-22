@@ -1,6 +1,7 @@
 package allocdriver
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -10,7 +11,12 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
@@ -114,6 +120,41 @@ type cmd struct {
 	pluginFn func(hclog.Logger) interface{}
 }
 
+func (c *cmd) registerPlugin(pluginInfo *base.PluginInfoResponse) {
+	// register as an alloc driver
+
+	pluginID := loader.PluginID{
+		Name:       pluginInfo.Name,
+		PluginType: pluginInfo.Type,
+	}
+	pluginConfig := &loader.InternalPluginConfig{
+		Config:  map[string]interface{}{},
+		Factory: c.pluginFn,
+	}
+	catalog.Register(pluginID, pluginConfig)
+
+	// register as a plain driver
+	driverPluginID := loader.PluginID{
+		Name: pluginInfo.Name,
+
+		// override plugin type to be a plain driver to ease fingerprinting
+		PluginType: base.PluginTypeDriver,
+	}
+	driverPluginConfig := &loader.InternalPluginConfig{
+		Config: map[string]interface{}{},
+		Factory: func(logger hclog.Logger) interface{} {
+			p, ok := c.pluginFn(logger).(AllocDriverPlugin)
+			if !ok {
+				panic("plugin is not an AllocDriverPlugin")
+			}
+
+			return &allocDriverWrapper{d: p}
+		},
+	}
+
+	catalog.Register(driverPluginID, driverPluginConfig)
+}
+
 func (c *cmd) Run(args []string) int {
 	return c.Command.RunWithCustomConfig(args, func(config *agent.Config, logger hclog.Logger) {
 		if config.Client != nil {
@@ -126,6 +167,15 @@ func (c *cmd) Run(args []string) int {
 		}
 
 		plugin := c.pluginFn(logger).(AllocDriverPlugin)
+
+		plugInfo, err := plugin.PluginInfo()
+		if err != nil {
+			panic("unexpected error getting plugin info")
+		}
+
+		c.registerPlugin(plugInfo)
+		config.Client.Options["driver.whitelist"] = plugInfo.Name
+
 		config.ClientConfig.CustomFingerprinters = map[string]func(hclog.Logger) interface{}{
 			"custom": func(hclog.Logger) interface{} { return &fingerprinter{allocDriver: plugin} },
 		}
@@ -164,3 +214,36 @@ func (f *fingerprinter) Fingerprint(req *fingerprint.FingerprintRequest, resp *f
 func (f *fingerprinter) Periodic() (bool, time.Duration) {
 	return false, 0
 }
+
+type allocDriverWrapper struct {
+	drivers.DriverPlugin
+
+	d AllocDriverPlugin
+}
+
+func (a *allocDriverWrapper) PluginInfo() (*base.PluginInfoResponse, error) {
+	r, err := a.d.PluginInfo()
+	if err != nil {
+		return nil, err
+	}
+	r.Type = base.PluginTypeDriver
+	return r, nil
+}
+
+func (a *allocDriverWrapper) ConfigSchema() (*hclspec.Spec, error) {
+	return a.d.ConfigSchema()
+}
+
+func (a *allocDriverWrapper) SetConfig(c *base.Config) error {
+	return a.d.SetConfig(c)
+}
+
+func (a *allocDriverWrapper) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+	return a.d.Fingerprint(ctx)
+}
+
+func (a *allocDriverWrapper) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
+	return a.d.TaskEvents(ctx)
+}
+
+var _ base.BasePlugin = (*allocDriverWrapper)(nil)

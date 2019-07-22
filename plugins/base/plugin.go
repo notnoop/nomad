@@ -18,6 +18,9 @@ const (
 	// PluginTypeDriver implements the driver plugin interface
 	PluginTypeDriver = "driver"
 
+	// PluginTypeAllocDriver implements the alloc driver plugin interface
+	PluginTypeAllocDriver = "alloc_driver"
+
 	// PluginTypeDevice implements the device plugin interface
 	PluginTypeDevice = "device"
 )
