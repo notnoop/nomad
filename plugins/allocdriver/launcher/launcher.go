@@ -1,4 +1,4 @@
-package allocdriver
+package launcher
 
 import (
 	"context"
@@ -9,18 +9,16 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/allocdriver"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/version"
-	"github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 func Serve(pluginFn func(hclog.Logger) interface{}) {
@@ -32,22 +30,6 @@ func Serve(pluginFn func(hclog.Logger) interface{}) {
 
 func RunMain(args []string, pluginFn func(hclog.Logger) interface{}) int {
 
-	// Create the meta object
-	metaPtr := new(command.Meta)
-
-	// Don't use color if disabled
-	color := true
-	if os.Getenv(command.EnvNomadCLINoColor) != "" {
-		color = false
-	}
-
-	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
-	metaPtr.Ui = &cli.BasicUi{
-		Reader:      os.Stdin,
-		Writer:      colorable.NewColorableStdout(),
-		ErrorWriter: colorable.NewColorableStderr(),
-	}
-
 	// The Nomad agent never outputs color
 	agentUi := &cli.BasicUi{
 		Reader:      os.Stdin,
@@ -55,17 +37,7 @@ func RunMain(args []string, pluginFn func(hclog.Logger) interface{}) int {
 		ErrorWriter: os.Stderr,
 	}
 
-	// Only use colored UI if stdout is a tty, and not disabled
-	if isTerminal && color {
-		metaPtr.Ui = &cli.ColoredUi{
-			ErrorColor: cli.UiColorRed,
-			WarnColor:  cli.UiColorYellow,
-			InfoColor:  cli.UiColorGreen,
-			Ui:         metaPtr.Ui,
-		}
-	}
-
-	commands := commands(metaPtr, agentUi, pluginFn)
+	commands := commands(agentUi, pluginFn)
 	cli := &cli.CLI{
 		Name:                       os.Args[0],
 		Version:                    version.GetVersion().FullVersionNumber(true),
@@ -86,20 +58,7 @@ func RunMain(args []string, pluginFn func(hclog.Logger) interface{}) int {
 
 }
 
-func commands(metaPtr *command.Meta, agentUi cli.Ui, pluginFn func(hclog.Logger) interface{}) map[string]cli.CommandFactory {
-	if metaPtr == nil {
-		metaPtr = new(command.Meta)
-	}
-
-	meta := *metaPtr
-	if meta.Ui == nil {
-		meta.Ui = &cli.BasicUi{
-			Reader:      os.Stdin,
-			Writer:      colorable.NewColorableStdout(),
-			ErrorWriter: colorable.NewColorableStderr(),
-		}
-	}
-
+func commands(agentUi cli.Ui, pluginFn func(hclog.Logger) interface{}) map[string]cli.CommandFactory {
 	all := map[string]cli.CommandFactory{
 		"agent": func() (cli.Command, error) {
 			return &cmd{
@@ -143,7 +102,7 @@ func (c *cmd) registerPlugin(pluginInfo *base.PluginInfoResponse) {
 	driverPluginConfig := &loader.InternalPluginConfig{
 		Config: map[string]interface{}{},
 		Factory: func(logger hclog.Logger) interface{} {
-			p, ok := c.pluginFn(logger).(AllocDriverPlugin)
+			p, ok := c.pluginFn(logger).(allocdriver.AllocDriverPlugin)
 			if !ok {
 				panic("plugin is not an AllocDriverPlugin")
 			}
@@ -166,7 +125,7 @@ func (c *cmd) Run(args []string) int {
 			config.ClientConfig = &clientconfig.Config{}
 		}
 
-		plugin := c.pluginFn(logger).(AllocDriverPlugin)
+		plugin := c.pluginFn(logger).(allocdriver.AllocDriverPlugin)
 
 		plugInfo, err := plugin.PluginInfo()
 		if err != nil {
@@ -183,7 +142,7 @@ func (c *cmd) Run(args []string) int {
 }
 
 type fingerprinter struct {
-	allocDriver AllocDriverPlugin
+	allocDriver allocdriver.AllocDriverPlugin
 }
 
 func (f *fingerprinter) Fingerprint(req *fingerprint.FingerprintRequest, resp *fingerprint.FingerprintResponse) error {
@@ -218,7 +177,7 @@ func (f *fingerprinter) Periodic() (bool, time.Duration) {
 type allocDriverWrapper struct {
 	drivers.DriverPlugin
 
-	d AllocDriverPlugin
+	d allocdriver.AllocDriverPlugin
 }
 
 func (a *allocDriverWrapper) PluginInfo() (*base.PluginInfoResponse, error) {
@@ -242,7 +201,7 @@ func (a *allocDriverWrapper) Fingerprint(ctx context.Context) (<-chan *drivers.F
 	return a.d.Fingerprint(ctx)
 }
 
-func (a *allocDriverWrapper) TaskEvents(ctx context.Context) (<-chan *TaskEvent, error) {
+func (a *allocDriverWrapper) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return a.d.TaskEvents(ctx)
 }
 

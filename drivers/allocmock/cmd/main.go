@@ -3,11 +3,11 @@ package main
 import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/allocmock"
-	"github.com/hashicorp/nomad/plugins/allocdriver"
+	allocdriverlauncher "github.com/hashicorp/nomad/plugins/allocdriver/launcher"
 )
 
 func main() {
-	allocdriver.Serve(newDriver)
+	allocdriverlauncher.Serve(newDriver)
 }
 
 func newDriver(logger hclog.Logger) interface{} {
