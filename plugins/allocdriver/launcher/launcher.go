@@ -185,8 +185,10 @@ func (a *allocDriverWrapper) PluginInfo() (*base.PluginInfoResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.Type = base.PluginTypeDriver
-	return r, nil
+
+	c := *r
+	c.Type = base.PluginTypeDriver
+	return &c, nil
 }
 
 func (a *allocDriverWrapper) ConfigSchema() (*hclspec.Spec, error) {

@@ -7,10 +7,12 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/allocdriver"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -23,6 +25,24 @@ type adManager struct {
 	stateDB state.StateDB
 
 	driver allocdriver.AllocDriverPlugin
+}
+
+func newAllocDriverManager(cfg *config.Config, logger hclog.Logger) (*adManager, error) {
+	allocDrivers := cfg.PluginLoader.Catalog()[base.PluginTypeAllocDriver]
+	if len(allocDrivers) == 0 {
+		return nil, nil
+	}
+
+	d := allocDrivers[0]
+	plugin, err := cfg.PluginLoader.Dispense(d.Name, d.Type, nil, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	return &adManager{
+		logger: logger,
+		driver: plugin.Plugin().(allocdriver.AllocDriverPlugin),
+	}, nil
 }
 
 var _ AllocManager = (*adManager)(nil)

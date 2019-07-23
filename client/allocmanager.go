@@ -83,6 +83,13 @@ type arManager struct {
 	garbageCollector *AllocGarbageCollector
 }
 
+func newARManager(logger hclog.Logger) *arManager {
+	return &arManager{
+		logger: logger,
+		allocs: make(map[string]AllocRunner),
+	}
+}
+
 func (m *arManager) init(c *Client) {
 	m.client = c
 	m.stateDB = c.stateDB

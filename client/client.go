@@ -280,6 +280,18 @@ var (
 	noServersErr = errors.New("no servers")
 )
 
+func allocManager(cfg *config.Config, logger hclog.Logger) AllocManager {
+	m, err := newAllocDriverManager(cfg, logger)
+	if err != nil {
+		logger.Error("failed to create alloc driver manager", "error", err)
+	}
+	if m != nil {
+		return m
+	}
+
+	return newARManager(logger)
+}
+
 // NewClient is used to create a new client from the given configuration
 func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
 	// Create the tls wrapper
@@ -302,10 +314,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulServic
 	// Create the logger
 	logger := cfg.Logger.ResetNamed("client")
 
-	arManager := &arManager{
-		logger: logger,
-		allocs: make(map[string]AllocRunner),
-	}
+	arManager := allocManager(cfg, logger)
 
 	// Create the client
 	c := &Client{
