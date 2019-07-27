@@ -3,6 +3,7 @@ package allocmock
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
@@ -44,6 +45,8 @@ type Driver struct {
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
+
+	handler allocdriver.ClientHandler
 }
 
 var _ allocdriver.AllocDriverPlugin = (*Driver)(nil)
@@ -60,6 +63,10 @@ func New(logger hclog.Logger) *Driver {
 	}
 }
 
+func (d *Driver) Initialize(handler allocdriver.ClientHandler) error {
+	d.handler = handler
+	return nil
+}
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
 	return pluginInfo, nil
 }
@@ -103,13 +110,34 @@ func (d *Driver) Fingerprint(context.Context) (<-chan *allocdriver.Fingerprint, 
 }
 
 func (d *Driver) StartAllocation(alloc *structs.Allocation) error {
-	return fmt.Errorf("not supported")
+	d.logger.Info("starting alloc", "alloc_id", alloc.ID)
+
+	now := time.Now()
+	ts := map[string]*structs.TaskState{}
+	for _, task := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		ts[task.Name] = &structs.TaskState{
+			StartedAt: now,
+			State:     structs.TaskStateRunning,
+		}
+	}
+	d.handler.UpdateClientStatus(alloc.ID, &allocdriver.AllocState{
+		ClientStatus:      structs.AllocClientStatusRunning,
+		ClientDescription: "Tasks are running",
+		TaskStates:        ts,
+	})
+	return nil
 }
 func (d *Driver) StopAllocation(allocID string) error {
-	return fmt.Errorf("not supported")
+	d.logger.Info("stopping alloc", "alloc_id", allocID)
+	d.handler.UpdateClientStatus(allocID, &allocdriver.AllocState{
+		ClientStatus:      structs.AllocClientStatusComplete,
+		ClientDescription: "Tasks were stopped",
+	})
+	return nil
 }
 func (d *Driver) UpdateAllocation(alloc *structs.Allocation) error {
-	return fmt.Errorf("not supported")
+	d.logger.Info("updating alloc", "alloc_id", alloc.ID)
+	return nil
 }
 
 func (d *Driver) SignalAllocation(allocID, taskName, signal string) error {

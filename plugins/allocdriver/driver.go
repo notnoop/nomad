@@ -28,8 +28,20 @@ type NodeFingerprint struct {
 	Links      map[string]string
 }
 
+type ClientHandler interface {
+	// AllocStateUpdated is used to emit an updated allocation. This allocation
+	// is stripped to only include client settable fields.
+	//AllocStateUpdated(alloc *structs.Allocation)
+
+	GetAllocByID(allocID string) *structs.Allocation
+
+	UpdateClientStatus(allocID string, state *AllocState) error
+}
+
 type AllocDriverPlugin interface {
 	base.BasePlugin
+
+	Initialize(handler ClientHandler) error
 
 	NodeFingerprint() (*NodeFingerprint, error)
 	Fingerprint(context.Context) (<-chan *Fingerprint, error)

@@ -25,6 +25,8 @@ type adManager struct {
 	stateDB state.StateDB
 
 	driver allocdriver.AllocDriverPlugin
+
+	runningAllocs map[string]*structs.Allocation
 }
 
 func newAllocDriverManager(cfg *config.Config, logger hclog.Logger) (*adManager, error) {
@@ -40,8 +42,9 @@ func newAllocDriverManager(cfg *config.Config, logger hclog.Logger) (*adManager,
 	}
 
 	return &adManager{
-		logger: logger,
-		driver: plugin.Plugin().(allocdriver.AllocDriverPlugin),
+		logger:        logger,
+		driver:        plugin.Plugin().(allocdriver.AllocDriverPlugin),
+		runningAllocs: map[string]*structs.Allocation{},
 	}, nil
 }
 
@@ -98,7 +101,8 @@ func (m *adManager) saveState() error {
 }
 
 func (m *adManager) init(c *Client) {
-
+	m.client = c
+	m.driver.Initialize(m)
 }
 
 func (m *adManager) destroy() error {
@@ -114,5 +118,49 @@ func (m *adManager) NumAllocs() int {
 }
 
 func (m *adManager) allocSynchronizer() (AllocSynchronizer, error) {
-	return nil, fmt.Errorf("not supported")
+	return m, nil
+}
+
+func (m *adManager) runningAllocations() map[string]uint64 {
+	allocs := make(map[string]uint64, len(m.runningAllocs))
+	for _, alloc := range m.runningAllocs {
+		allocs[alloc.ID] = alloc.AllocModifyIndex
+	}
+
+	return allocs
+}
+
+func (m *adManager) isInvalidAlloc(allocID string) bool {
+	return false
+}
+
+func (m *adManager) removeAlloc(allocID string) {
+	m.driver.StopAllocation(allocID)
+}
+func (m *adManager) updateAlloc(alloc *structs.Allocation) {
+	m.driver.UpdateAllocation(alloc)
+}
+
+func (m *adManager) startAlloc(alloc *structs.Allocation, migrationToke string) error {
+	m.runningAllocs[alloc.ID] = alloc
+	return m.driver.StartAllocation(alloc)
+}
+
+func (m *adManager) GetAllocByID(allocID string) *structs.Allocation {
+	return m.runningAllocs[allocID]
+}
+
+func (m *adManager) UpdateClientStatus(allocID string, state *allocdriver.AllocState) error {
+	alloc, ok := m.runningAllocs[allocID]
+	if !ok {
+		return structs.NewErrUnknownAllocation(allocID)
+	}
+
+	a := alloc.CopySkipJob()
+	a.ClientStatus = state.ClientStatus
+	a.ClientDescription = state.ClientDescription
+	a.TaskStates = state.TaskStates
+	m.logger.Info("updating alloc", "alloc_id", a.ID, "states", a.TaskStates)
+	m.client.AllocStateUpdated(a)
+	return nil
 }
