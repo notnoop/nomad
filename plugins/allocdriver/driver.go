@@ -4,9 +4,11 @@ import (
 	"context"
 
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
 const (
@@ -28,6 +30,11 @@ type NodeFingerprint struct {
 	Links      map[string]string
 }
 
+type TaskConfigParser interface {
+	SetTaskEnvCustomizer(func(*taskenv.Builder))
+	ParseTask(out interface{}, alloc *structs.Allocation, task *structs.Task) (env map[string]string, err error)
+}
+
 type ClientHandler interface {
 	// AllocStateUpdated is used to emit an updated allocation. This allocation
 	// is stripped to only include client settable fields.
@@ -36,6 +43,8 @@ type ClientHandler interface {
 	GetAllocByID(allocID string) *structs.Allocation
 
 	UpdateClientStatus(allocID string, state *AllocState) error
+
+	TaskConfigParser(*hclspec.Spec) (TaskConfigParser, error)
 }
 
 type AllocDriverPlugin interface {

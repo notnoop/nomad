@@ -28,7 +28,15 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+
+	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"image": hclspec.NewAttr("image", "string", true),
+	})
 )
+
+type TaskConfig struct {
+	Image string `codec:"image"`
+}
 
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
@@ -47,6 +55,8 @@ type Driver struct {
 	logger hclog.Logger
 
 	handler allocdriver.ClientHandler
+
+	taskParser allocdriver.TaskConfigParser
 }
 
 var _ allocdriver.AllocDriverPlugin = (*Driver)(nil)
@@ -65,6 +75,7 @@ func New(logger hclog.Logger) *Driver {
 
 func (d *Driver) Initialize(handler allocdriver.ClientHandler) error {
 	d.handler = handler
+	d.taskParser, _ = handler.TaskConfigParser(taskConfigSpec)
 	return nil
 }
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
@@ -111,6 +122,16 @@ func (d *Driver) Fingerprint(context.Context) (<-chan *allocdriver.Fingerprint, 
 
 func (d *Driver) StartAllocation(alloc *structs.Allocation) error {
 	d.logger.Info("starting alloc", "alloc_id", alloc.ID)
+
+	for _, t := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks {
+		var c TaskConfig
+		env, err := d.taskParser.ParseTask(&c, alloc, t)
+		d.logger.Info("launching task",
+			"alloc_id", alloc.ID, "task_name", t.Name,
+			"config", fmt.Sprintf("%#v", c), "env", env,
+			"error", err,
+		)
+	}
 
 	now := time.Now()
 	ts := map[string]*structs.TaskState{}

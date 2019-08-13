@@ -1,19 +1,27 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/hcl2/hcldec"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/allocdriver"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	"github.com/vmihailenco/msgpack"
 )
 
 type adManager struct {
@@ -163,4 +171,57 @@ func (m *adManager) UpdateClientStatus(allocID string, state *allocdriver.AllocS
 	m.logger.Info("updating alloc", "alloc_id", a.ID, "states", a.TaskStates)
 	m.client.AllocStateUpdated(a)
 	return nil
+}
+
+func (m *adManager) TaskConfigParser(schema *hclspec.Spec) (allocdriver.TaskConfigParser, error) {
+	spec, diag := hclspecutils.Convert(schema)
+	if diag.HasErrors() {
+		return nil, fmt.Errorf("failed to convert task schema: %v", diag)
+	}
+
+	return &configParser{
+		region:     m.client.Region(),
+		node:       m.client.Node(),
+		taskSchema: spec,
+	}, nil
+
+}
+
+type configParser struct {
+	region     string
+	node       *structs.Node
+	taskSchema hcldec.Spec
+
+	envCustomizer func(*taskenv.Builder)
+}
+
+func (p *configParser) SetTaskEnvCustomizer(fn func(*taskenv.Builder)) {
+	p.envCustomizer = fn
+
+}
+func (p *configParser) ParseTask(out interface{}, alloc *structs.Allocation, task *structs.Task) (map[string]string, error) {
+	envBuilder := taskenv.NewBuilder(p.node, alloc, task, p.region)
+
+	if p.envCustomizer != nil {
+		p.envCustomizer(envBuilder)
+	}
+
+	env := envBuilder.Build()
+	vars, _, err := env.AllValues()
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute env vars: %v", err)
+	}
+
+	val, _, diagErrs := hclutils.ParseHclInterface(task.Config, p.taskSchema, vars)
+	if len(diagErrs) != 0 {
+		return nil, multierror.Append(errors.New("failed to parse config: "), diagErrs...)
+	}
+
+	data, err := msgpack.Marshal(val, val.Type())
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal data: %v", err)
+	}
+
+	base.MsgPackDecode(data, out)
+	return env.All(), nil
 }
