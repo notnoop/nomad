@@ -122,7 +122,7 @@ func (c *cmd) Run(args []string) int {
 		}
 
 		if config.ClientConfig == nil {
-			config.ClientConfig = &clientconfig.Config{}
+			config.ClientConfig = clientconfig.DefaultConfig()
 		}
 
 		plugin := c.pluginFn(logger).(allocdriver.AllocDriverPlugin)
