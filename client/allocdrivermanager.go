@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/vmihailenco/msgpack"
+	"github.com/zclconf/go-cty/cty/msgpack"
 )
 
 type adManager struct {
@@ -222,6 +222,10 @@ func (p *configParser) ParseTask(out interface{}, alloc *structs.Allocation, tas
 		return nil, fmt.Errorf("failed to marshal data: %v", err)
 	}
 
-	base.MsgPackDecode(data, out)
+	err = base.MsgPackDecode(data, out)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode data: %v", err)
+	}
+
 	return env.All(), nil
 }
