@@ -3,6 +3,7 @@ package client
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -34,7 +35,8 @@ type adManager struct {
 
 	driver allocdriver.AllocDriverPlugin
 
-	runningAllocs map[string]*structs.Allocation
+	runningAllocs     map[string]*structs.Allocation
+	runningAllocsLock sync.RWMutex
 }
 
 func newAllocDriverManager(cfg *config.Config, logger hclog.Logger) (*adManager, error) {
@@ -130,6 +132,9 @@ func (m *adManager) allocSynchronizer() (AllocSynchronizer, error) {
 }
 
 func (m *adManager) runningAllocations() map[string]uint64 {
+	m.runningAllocsLock.RLock()
+	defer m.runningAllocsLock.RUnlock()
+
 	allocs := make(map[string]uint64, len(m.runningAllocs))
 	for _, alloc := range m.runningAllocs {
 		allocs[alloc.ID] = alloc.AllocModifyIndex
@@ -147,19 +152,33 @@ func (m *adManager) removeAlloc(allocID string) {
 }
 func (m *adManager) updateAlloc(alloc *structs.Allocation) {
 	m.driver.UpdateAllocation(alloc)
+	m.updateRunningAllocs(alloc)
 }
 
 func (m *adManager) startAlloc(alloc *structs.Allocation, migrationToke string) error {
-	m.runningAllocs[alloc.ID] = alloc
+	m.updateRunningAllocs(alloc)
 	return m.driver.StartAllocation(alloc)
 }
 
 func (m *adManager) GetAllocByID(allocID string) *structs.Allocation {
+	m.runningAllocsLock.RLock()
+	defer m.runningAllocsLock.RUnlock()
+
 	return m.runningAllocs[allocID]
 }
 
+func (m *adManager) updateRunningAllocs(alloc *structs.Allocation) {
+	m.runningAllocsLock.Lock()
+	defer m.runningAllocsLock.Unlock()
+
+	m.runningAllocs[alloc.ID] = alloc
+}
+
 func (m *adManager) UpdateClientStatus(allocID string, state *allocdriver.AllocState) error {
+	m.runningAllocsLock.RLock()
 	alloc, ok := m.runningAllocs[allocID]
+	m.runningAllocsLock.RUnlock()
+
 	if !ok {
 		return structs.NewErrUnknownAllocation(allocID)
 	}
