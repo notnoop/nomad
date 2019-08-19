@@ -17,6 +17,26 @@ const (
 	ApiVersion010 = "v0.1.0"
 )
 
+type AllocDriverPlugin interface {
+	base.BasePlugin
+
+	Initialize(handler ClientHandler) error
+
+	NodeFingerprint() (*NodeFingerprint, error)
+	Fingerprint(context.Context) (<-chan *Fingerprint, error)
+	TaskEvents(context.Context) (<-chan *TaskEvent, error)
+
+	StartAllocation(alloc *structs.Allocation) error
+	StopAllocation(allocID string) error
+	UpdateAllocation(alloc *structs.Allocation) error
+
+	SignalAllocation(allocID, taskName, signal string) error
+	RestartAllocation(allocID, taskName string) error
+	InspectAllocation(allocID string) (*AllocState, error)
+
+	Shutdown()
+}
+
 type TaskEvent = drivers.TaskEvent
 type Fingerprint = drivers.Fingerprint
 type AllocState = arstate.State
@@ -45,24 +65,4 @@ type ClientHandler interface {
 	UpdateClientStatus(allocID string, state *AllocState) error
 
 	TaskConfigParser(*hclspec.Spec) (TaskConfigParser, error)
-}
-
-type AllocDriverPlugin interface {
-	base.BasePlugin
-
-	Initialize(handler ClientHandler) error
-
-	NodeFingerprint() (*NodeFingerprint, error)
-	Fingerprint(context.Context) (<-chan *Fingerprint, error)
-	TaskEvents(context.Context) (<-chan *TaskEvent, error)
-
-	StartAllocation(alloc *structs.Allocation) error
-	StopAllocation(allocID string) error
-	UpdateAllocation(alloc *structs.Allocation) error
-
-	SignalAllocation(allocID, taskName, signal string) error
-	RestartAllocation(allocID, taskName string) error
-	InspectAllocation(allocID string) (*AllocState, error)
-
-	Shutdown()
 }

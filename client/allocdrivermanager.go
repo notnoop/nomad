@@ -104,7 +104,7 @@ func (m *adManager) allocTerminated(allocID string) {
 
 // general lifecycle functions
 func (m *adManager) restoreState(allocs []*structs.Allocation) error {
-	return fmt.Errorf("not supported")
+	return nil //fmt.Errorf("not supported")
 }
 func (m *adManager) saveState() error {
 	return fmt.Errorf("not supported")
