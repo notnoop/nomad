@@ -85,8 +85,9 @@ type arManager struct {
 
 func newARManager(logger hclog.Logger) *arManager {
 	return &arManager{
-		logger: logger,
-		allocs: make(map[string]AllocRunner),
+		logger:        logger,
+		allocs:        map[string]AllocRunner{},
+		invalidAllocs: map[string]struct{}{},
 	}
 }
 
